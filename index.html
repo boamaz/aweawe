@@ -137,43 +137,21 @@
             transform: scale(1);
         }
 
-        .toast {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
+        .message {
             padding: 1rem 1.5rem;
             border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
             font-weight: 500;
-            z-index: 1000;
-            display: none;
-            max-width: 400px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
         }
 
-        .toast.success {
+        .message.success {
             background: #10b981;
             color: white;
         }
 
-        .toast.error {
+        .message.error {
             background: #ef4444;
             color: white;
-        }
-
-        .toast.show {
-            display: block;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
         }
 
         .loading-spinner {
@@ -211,7 +189,19 @@
         </div>
         
         <div class="card-content">
-            <form id="contactForm" class="form" action="contact-handler.php" method="POST">
+            <?php
+            // Show success/error messages from PHP
+            if (isset($_GET['status'])) {
+                if ($_GET['status'] === 'success') {
+                    echo '<div class="message success">Thank you for your message! We\'ll get back to you soon.</div>';
+                } elseif ($_GET['status'] === 'error') {
+                    $errorMsg = isset($_GET['message']) ? htmlspecialchars($_GET['message']) : 'An error occurred. Please try again.';
+                    echo '<div class="message error">' . $errorMsg . '</div>';
+                }
+            }
+            ?>
+            
+            <form id="contactForm" class="form" method="POST">
                 <div class="form-row">
                     <div class="form-group">
                         <label for="name" class="label">
@@ -224,6 +214,7 @@
                             class="input"
                             placeholder="Your full name"
                             required
+                            value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>"
                         />
                     </div>
                     
@@ -238,6 +229,7 @@
                             class="input"
                             placeholder="your.email@example.com"
                             required
+                            value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
                         />
                     </div>
                 </div>
@@ -253,6 +245,7 @@
                         class="input"
                         placeholder="What's this about?"
                         required
+                        value="<?php echo isset($_POST['subject']) ? htmlspecialchars($_POST['subject']) : ''; ?>"
                     />
                 </div>
                 
@@ -267,7 +260,7 @@
                         rows="6"
                         placeholder="Please write at least 10 characters..."
                         required
-                    ></textarea>
+                    ><?php echo isset($_POST['message']) ? htmlspecialchars($_POST['message']) : ''; ?></textarea>
                 </div>
                 
                 <button type="submit" class="submit-btn" id="submitBtn">
@@ -277,100 +270,129 @@
         </div>
     </div>
 
-    <div id="toast" class="toast"></div>
-
     <script>
         const form = document.getElementById('contactForm');
         const submitBtn = document.getElementById('submitBtn');
         const btnText = document.getElementById('btnText');
-        const toast = document.getElementById('toast');
 
-        function showToast(message, type) {
-            toast.textContent = message;
-            toast.className = `toast ${type} show`;
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 5000);
-        }
-
-        function validateForm(formData) {
-            const name = formData.get('name').trim();
-            const email = formData.get('email').trim();
-            const subject = formData.get('subject').trim();
-            const message = formData.get('message').trim();
+        function validateForm() {
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const subject = document.getElementById('subject').value.trim();
+            const message = document.getElementById('message').value.trim();
 
             if (!name) {
-                showToast('Name is required', 'error');
+                alert('Name is required');
                 return false;
             }
 
             if (!email || !email.includes('@')) {
-                showToast('Valid email is required', 'error');
+                alert('Valid email is required');
                 return false;
             }
 
             if (!subject) {
-                showToast('Subject is required', 'error');
+                alert('Subject is required');
                 return false;
             }
 
             if (!message || message.length < 10) {
-                showToast('Message must be at least 10 characters long', 'error');
+                alert('Message must be at least 10 characters long');
                 return false;
             }
 
             return true;
         }
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const formData = new FormData(form);
-
-            if (!validateForm(formData)) {
-                return;
+        form.addEventListener('submit', function(e) {
+            if (!validateForm()) {
+                e.preventDefault();
+                return false;
             }
 
             // Show loading state
             submitBtn.disabled = true;
             btnText.innerHTML = '<span class="loading-spinner"></span>Sending...';
-
-            try {
-                const response = await fetch('contact-handler.php', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showToast('Thank you for your message! We\'ll get back to you soon.', 'success');
-                    form.reset();
-                } else {
-                    showToast(result.error || 'Failed to send message. Please try again.', 'error');
-                }
-            } catch (error) {
-                showToast('An unexpected error occurred. Please try again later.', 'error');
-            } finally {
-                // Reset button state
-                submitBtn.disabled = false;
-                btnText.textContent = 'Send Message';
-            }
-        });
-
-        // Check for URL parameters for success/error messages
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const status = urlParams.get('status');
-            const message = urlParams.get('message');
-
-            if (status === 'success') {
-                showToast('Thank you for your message! We\'ll get back to you soon.', 'success');
-            } else if (status === 'error') {
-                showToast(message || 'An error occurred. Please try again.', 'error');
-            }
         });
     </script>
+
+    <?php
+    // PHP contact handler inline
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Configuration
+        $resend_api_key = 're_YfbXRXJh_KjR95HAhjZ3NWPrkVWTDS18A';
+        $recipient_email = 'realgamers654@gmail.com';
+        
+        // Get form data
+        $name = trim($_POST['name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $subject = trim($_POST['subject'] ?? '');
+        $message = trim($_POST['message'] ?? '');
+        
+        // Validate
+        $errors = [];
+        if (empty($name)) $errors[] = 'Name is required';
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Valid email is required';
+        if (empty($subject)) $errors[] = 'Subject is required';
+        if (empty($message) || strlen($message) < 10) $errors[] = 'Message must be at least 10 characters long';
+        
+        if (!empty($errors)) {
+            $error_message = implode(', ', $errors);
+            echo '<script>window.location.href = "?status=error&message=' . urlencode($error_message) . '";</script>';
+            exit;
+        }
+        
+        // Send email via Resend API
+        $email_html = '
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+                New Contact Form Submission
+            </h2>
+            <div style="margin: 20px 0;">
+                <p><strong>Name:</strong> ' . htmlspecialchars($name) . '</p>
+                <p><strong>Email:</strong> ' . htmlspecialchars($email) . '</p>
+                <p><strong>Subject:</strong> ' . htmlspecialchars($subject) . '</p>
+            </div>
+            <div style="margin: 20px 0;">
+                <h3 style="color: #333;">Message:</h3>
+                <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
+                    ' . nl2br(htmlspecialchars($message)) . '
+                </div>
+            </div>
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            <p style="color: #666; font-size: 12px;">
+                This email was sent from your contact form. Reply to respond to ' . htmlspecialchars($email) . '.
+            </p>
+        </div>';
+        
+        $post_data = json_encode([
+            'from' => 'onboarding@resend.dev',
+            'to' => [$recipient_email],
+            'subject' => 'New Contact Form: ' . $subject,
+            'html' => $email_html,
+            'reply_to' => $email
+        ]);
+        
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => [
+                    'Authorization: Bearer ' . $resend_api_key,
+                    'Content-Type: application/json',
+                ],
+                'content' => $post_data
+            ]
+        ]);
+        
+        $response = @file_get_contents('https://api.resend.com/emails', false, $context);
+        
+        if ($response) {
+            echo '<script>window.location.href = "?status=success";</script>';
+        } else {
+            echo '<script>window.location.href = "?status=error&message=' . urlencode('Failed to send email. Please try again later.') . '";</script>';
+        }
+        exit;
+    }
+    ?>
 </body>
 </html>
